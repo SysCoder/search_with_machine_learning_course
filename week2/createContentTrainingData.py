@@ -1,4 +1,5 @@
 import argparse
+import itertools
 import multiprocessing
 import glob
 from tqdm import tqdm
@@ -25,7 +26,6 @@ general.add_argument("--label", default="id", help="id is default and needed for
 # random sample.
 general.add_argument("--sample_rate", default=1.0, type=float, help="The rate at which to sample input (default is 1.0)")
 
-# IMPLEMENT: Setting min_products removes infrequent categories and makes the classifier's task easier.
 general.add_argument("--min_products", default=0, type=int, help="The minimum number of products per category (default is 0).")
 
 args = parser.parse_args()
@@ -75,8 +75,16 @@ if __name__ == '__main__':
     with multiprocessing.Pool() as p:
         all_labels = tqdm(p.imap_unordered(_label_filename, files), total=len(files))
 
+        label_count = {}
+
+        label_list = list(itertools.chain.from_iterable(list(all_labels)))
+
+        for (cat, name) in label_list:
+            label_count[cat] =  label_count.get(cat, 0) + 1
+
+        print(label_count)
+        label_list_filtered = filter(lambda tuple:  label_count.get(tuple[0],0) >= min_products, label_list)
 
         with open(output_file, 'w') as output:
-            for label_list in all_labels:
-                for (cat, name) in label_list:
-                    output.write(f'__label__{cat} {name}\n')
+            for (cat, name) in label_list_filtered:
+                output.write(f'__label__{cat} {name}\n')
