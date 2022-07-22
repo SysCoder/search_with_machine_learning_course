@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 import numpy as np
 import csv
+from IPython.display import display
 
 # Useful if you want to perform stemming.
 import nltk
@@ -49,8 +50,31 @@ df = pd.read_csv(queries_file_name)[['category', 'query']]
 df = df[df['category'].isin(categories)]
 
 # IMPLEMENT ME: Convert queries to lowercase, and optionally implement other normalization, like stemming.
+df['query'] = df['query'].str.lower()
+df['tokens'] = df['query'].str.split()
+df['stemmed_tokens'] = df['tokens'].apply(lambda x: [stemmer.stem(y) for y in x])
+df['query'] = df['stemmed_tokens'].str.join(' ')
+display(df)
 
 # IMPLEMENT ME: Roll up categories to ancestors to satisfy the minimum number of queries per category.
+category_count_df = df.groupby('category').size().reset_index(name='cat_count')
+display(df)
+
+df_merged = df.merge(category_count_df, how="left", on="category").merge(parents_df, how='left', on='category')
+display(df_merged)
+
+num_of_subthreshold_categories = len(category_count_df[category_count_df.cat_count < min_queries])
+while num_of_subthreshold_categories > 0:
+    df_merged.loc[df_merged.cat_count < min_queries, 'category'] = df_merged['parent']
+    df = df_merged[['category', 'query']]
+    df = df[df.category.isin(categories)]
+    category_count_df = df.groupby('category').size().reset_index(name='cat_count')
+    df_merged = df.merge(category_count_df, how="left", on="category").merge(parents_df, how='left', on='category')
+    num_of_subthreshold_categories = len(category_count_df[category_count_df.cat_count < min_queries])
+    print("Number of sub-threshold categories: " + str(num_of_subthreshold_categories))
+
+
+
 
 # Create labels in fastText format.
 df['label'] = '__label__' + df['category']
